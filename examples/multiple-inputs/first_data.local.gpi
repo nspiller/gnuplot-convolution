@@ -1,0 +1,6 @@
+set title "Plotting two files"
+
+set xrange [0:6]
+
+set xlabel "Energy"
+set ylabel "Intensity"

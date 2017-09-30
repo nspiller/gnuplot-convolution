@@ -1,0 +1,91 @@
+#####################################
+## gnuplot_convolution.global.gpi: ##
+## Global settings for gnuplot     ##
+## using gnuplot_convolution       ##
+#####################################
+
+########
+## axis
+set xzeroaxis
+set mxtics 2
+set mytics 2
+set xtics nomirror
+set ytics nomirror
+
+##########
+## labels
+set xlabel offset 0,0
+set ylabel offset 0,0
+
+#######
+## key
+set key top left Left reverse
+set key autotitle columnhead
+set key spacing 0.6 
+
+#######
+## misc
+set samples 1000
+#set term pdf font "Helvetica,15"
+#set termoption enhanced
+
+
+#####################################
+## first_data.local.gpi 
+#####################################
+set title "Plotting two files: first\_data.dat and second_data.dat"
+
+set xrange [0:6]
+
+set xlabel "Energy"
+set ylabel "Intensity"
+
+##################################
+## Definition of Convolution(s) ##
+##################################
+
+######
+## cauchy_distribution No 1
+fwhm = 0.2
+p1_1 = 0.1 ; h1_1 = 0.3; C1_1(x,h1_1,p1_1,fwhm) = h1_1 / pi * fwhm/2 / ( (x - p1_1)**2 + (fwhm/2)**2 )
+p2_1 = 0.3 ; h2_1 = 0.4; C2_1(x,h2_1,p2_1,fwhm) = h2_1 / pi * fwhm/2 / ( (x - p2_1)**2 + (fwhm/2)**2 )
+p3_1 = 0.7 ; h3_1 = 0.3; C3_1(x,h3_1,p3_1,fwhm) = h3_1 / pi * fwhm/2 / ( (x - p3_1)**2 + (fwhm/2)**2 )
+CONVOLUTION_1(x) = 0 + C1_1(x,h1_1,p1_1,fwhm) + C2_1(x,h2_1,p2_1,fwhm) + C3_1(x,h3_1,p3_1,fwhm)
+
+######
+## cauchy_distribution No 2
+fwhm = 0.2
+p1_2 = 1.1 ; h1_2 = 0.83; C1_2(x,h1_2,p1_2,fwhm) = h1_2 / pi * fwhm/2 / ( (x - p1_2)**2 + (fwhm/2)**2 )
+p2_2 = 1.5 ; h2_2 = 0.1; C2_2(x,h2_2,p2_2,fwhm) = h2_2 / pi * fwhm/2 / ( (x - p2_2)**2 + (fwhm/2)**2 )
+p3_2 = 1.9 ; h3_2 = 0.01; C3_2(x,h3_2,p3_2,fwhm) = h3_2 / pi * fwhm/2 / ( (x - p3_2)**2 + (fwhm/2)**2 )
+CONVOLUTION_2(x) = 0 + C1_2(x,h1_2,p1_2,fwhm) + C2_2(x,h2_2,p2_2,fwhm) + C3_2(x,h3_2,p3_2,fwhm)
+
+######
+## cauchy_distribution No 3
+fwhm = 0.2
+p1_3 = 3.4 ; h1_3 = 0.2; C1_3(x,h1_3,p1_3,fwhm) = h1_3 / pi * fwhm/2 / ( (x - p1_3)**2 + (fwhm/2)**2 )
+p2_3 = 3.7 ; h2_3 = 0.1; C2_3(x,h2_3,p2_3,fwhm) = h2_3 / pi * fwhm/2 / ( (x - p2_3)**2 + (fwhm/2)**2 )
+p3_3 = 3.3 ; h3_3 = 0.34; C3_3(x,h3_3,p3_3,fwhm) = h3_3 / pi * fwhm/2 / ( (x - p3_3)**2 + (fwhm/2)**2 )
+CONVOLUTION_3(x) = 0 + C1_3(x,h1_3,p1_3,fwhm) + C2_3(x,h2_3,p2_3,fwhm) + C3_3(x,h3_3,p3_3,fwhm)
+
+######
+## cauchy_distribution No 4
+fwhm = 0.2
+p1_4 = 4.1 ; h1_4 = 0.4; C1_4(x,h1_4,p1_4,fwhm) = h1_4 / pi * fwhm/2 / ( (x - p1_4)**2 + (fwhm/2)**2 )
+p2_4 = 4.5 ; h2_4 = 0.1; C2_4(x,h2_4,p2_4,fwhm) = h2_4 / pi * fwhm/2 / ( (x - p2_4)**2 + (fwhm/2)**2 )
+CONVOLUTION_4(x) = 0 + C1_4(x,h1_4,p1_4,fwhm) + C2_4(x,h2_4,p2_4,fwhm)
+
+##################
+## Plot section ##
+##################
+plot\
+	 	CONVOLUTION_1(x) with lines ls 1 title "first1",\
+	 	CONVOLUTION_2(x) with lines ls 2 title "first2",\
+	 	CONVOLUTION_3(x) with lines ls 3 title "first3",\
+	 	CONVOLUTION_4(x) with lines ls 4 title "second1",\
+		0/0 t '' ## Empty function to surpress trailing comma warning
+
+replot
+set term pdf
+set output 'first_data.pdf'
+replot
