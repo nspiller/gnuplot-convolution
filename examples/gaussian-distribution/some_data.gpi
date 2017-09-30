@@ -1,0 +1,87 @@
+#####################################
+## gnuplot_convolution.global.gpi: ##
+## Global settings for gnuplot     ##
+## using gnuplot_convolution       ##
+#####################################
+
+########
+## axis
+set xzeroaxis
+set mxtics 2
+set mytics 2
+set xtics nomirror
+set ytics nomirror
+
+##########
+## labels
+set xlabel offset 0,0
+set ylabel offset 0,0
+
+#######
+## key
+set key top left Left reverse
+set key autotitle columnhead
+set key spacing 0.6 
+
+#######
+## misc
+set samples 1000
+#set term pdf font "Helvetica,15"
+#set termoption enhanced
+
+
+#####################################
+## some_data.local.gpi 
+#####################################
+set title "Convolution of some_data.dat with a Gaussian (FWHM = 0.2)"
+set xlabel "Energy [eV]"
+set ylabel "Intensity"
+set xrange [-2.5:2.5]
+
+##################################
+## Definition of Convolution(s) ##
+##################################
+
+######
+## gaussian_distribution No 1
+fwhm = 0.15
+p1_1 = 0.0 ; h1_1 = 0.3; G1_1(x,h1_1,p1_1,fwhm) = h1_1 / fwhm * 2 * sqrt( log(2) / pi ) * exp( -4 * log(2) * ( x - p1_1 )**2 / fwhm**2)
+p2_1 = 0.4 ; h2_1 = 0.2; G2_1(x,h2_1,p2_1,fwhm) = h2_1 / fwhm * 2 * sqrt( log(2) / pi ) * exp( -4 * log(2) * ( x - p2_1 )**2 / fwhm**2)
+p3_1 = 0.6 ; h3_1 = 0.1; G3_1(x,h3_1,p3_1,fwhm) = h3_1 / fwhm * 2 * sqrt( log(2) / pi ) * exp( -4 * log(2) * ( x - p3_1 )**2 / fwhm**2)
+p4_1 = 0.4 ; h4_1 = 0.6; G4_1(x,h4_1,p4_1,fwhm) = h4_1 / fwhm * 2 * sqrt( log(2) / pi ) * exp( -4 * log(2) * ( x - p4_1 )**2 / fwhm**2)
+p5_1 = 0.3 ; h5_1 = 0.01; G5_1(x,h5_1,p5_1,fwhm) = h5_1 / fwhm * 2 * sqrt( log(2) / pi ) * exp( -4 * log(2) * ( x - p5_1 )**2 / fwhm**2)
+p6_1 = 0.0 ; h6_1 = 0.1; G6_1(x,h6_1,p6_1,fwhm) = h6_1 / fwhm * 2 * sqrt( log(2) / pi ) * exp( -4 * log(2) * ( x - p6_1 )**2 / fwhm**2)
+p7_1 = 0.0 ; h7_1 = 0.0; G7_1(x,h7_1,p7_1,fwhm) = h7_1 / fwhm * 2 * sqrt( log(2) / pi ) * exp( -4 * log(2) * ( x - p7_1 )**2 / fwhm**2)
+CONVOLUTION_1(x) = 0 + G1_1(x,h1_1,p1_1,fwhm) + G2_1(x,h2_1,p2_1,fwhm) + G3_1(x,h3_1,p3_1,fwhm) + G4_1(x,h4_1,p4_1,fwhm) + G5_1(x,h5_1,p5_1,fwhm) + G6_1(x,h6_1,p6_1,fwhm) + G7_1(x,h7_1,p7_1,fwhm)
+
+######
+## gaussian_distribution No 2
+fwhm = 0.15
+p1_2 = 1.0 ; h1_2 = 0.3; G1_2(x,h1_2,p1_2,fwhm) = h1_2 / fwhm * 2 * sqrt( log(2) / pi ) * exp( -4 * log(2) * ( x - p1_2 )**2 / fwhm**2)
+p2_2 = 1.2 ; h2_2 = 0.13; G2_2(x,h2_2,p2_2,fwhm) = h2_2 / fwhm * 2 * sqrt( log(2) / pi ) * exp( -4 * log(2) * ( x - p2_2 )**2 / fwhm**2)
+p3_2 = 0.9 ; h3_2 = 0.32; G3_2(x,h3_2,p3_2,fwhm) = h3_2 / fwhm * 2 * sqrt( log(2) / pi ) * exp( -4 * log(2) * ( x - p3_2 )**2 / fwhm**2)
+p4_2 = 0.7 ; h4_2 = 0.4; G4_2(x,h4_2,p4_2,fwhm) = h4_2 / fwhm * 2 * sqrt( log(2) / pi ) * exp( -4 * log(2) * ( x - p4_2 )**2 / fwhm**2)
+p5_2 = 0.95 ; h5_2 = 0.1; G5_2(x,h5_2,p5_2,fwhm) = h5_2 / fwhm * 2 * sqrt( log(2) / pi ) * exp( -4 * log(2) * ( x - p5_2 )**2 / fwhm**2)
+p6_2 = 1.14 ; h6_2 = 0.1; G6_2(x,h6_2,p6_2,fwhm) = h6_2 / fwhm * 2 * sqrt( log(2) / pi ) * exp( -4 * log(2) * ( x - p6_2 )**2 / fwhm**2)
+CONVOLUTION_2(x) = 0 + G1_2(x,h1_2,p1_2,fwhm) + G2_2(x,h2_2,p2_2,fwhm) + G3_2(x,h3_2,p3_2,fwhm) + G4_2(x,h4_2,p4_2,fwhm) + G5_2(x,h5_2,p5_2,fwhm) + G6_2(x,h6_2,p6_2,fwhm)
+
+######
+## gaussian_distribution No 3
+fwhm = 0.15
+p1_3 = -0.4 ; h1_3 = 0.3; G1_3(x,h1_3,p1_3,fwhm) = h1_3 / fwhm * 2 * sqrt( log(2) / pi ) * exp( -4 * log(2) * ( x - p1_3 )**2 / fwhm**2)
+p2_3 = -0.6 ; h2_3 = 0.1; G2_3(x,h2_3,p2_3,fwhm) = h2_3 / fwhm * 2 * sqrt( log(2) / pi ) * exp( -4 * log(2) * ( x - p2_3 )**2 / fwhm**2)
+CONVOLUTION_3(x) = 0 + G1_3(x,h1_3,p1_3,fwhm) + G2_3(x,h2_3,p2_3,fwhm)
+
+##################
+## Plot section ##
+##################
+plot\
+	 	CONVOLUTION_1(x) with lines ls 1 title "energy1",\
+	 	CONVOLUTION_2(x) with lines ls 2 title "energy2",\
+	 	CONVOLUTION_3(x) with lines ls 3 title "energy3",\
+		0/0 t '' ## Empty function to surpress trailing comma warning
+
+replot
+set term pdf
+set output 'some_data.pdf'
+replot

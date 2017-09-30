@@ -1,0 +1,4 @@
+set title "Convolution of some_data.dat with a Gaussian (FWHM = 0.2)"
+set xlabel "Energy [eV]"
+set ylabel "Intensity"
+set xrange [-2.5:2.5]
