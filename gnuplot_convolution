@@ -1,0 +1,461 @@
+#!/bin/bash
+## bash script to convolute impuls spectra with with gnuplot
+## written by Nico Spiller <nico.spiller@iwr.uni-heidelberg.de>
+
+
+##################################
+## Default variable declaration ## 
+##################################
+
+## Plot settings 
+########
+## If declared, convolute with a Cauchy distribution with the FWHM 
+## For UVVIS spectra, 0.2 eV is a good value
+PLOT_CAUCH_FWHM=
+
+## If declared, convolute with a Gaussian distribution with the FWHM 
+## For photoelectron spectra, 0.95 eV is a good value
+PLOT_GAUSS_FWHM=
+
+## Set 1 to plot impulses, set 0 to not plot impulses (i.e. convolution only)
+PLOT_IMPUL=0
+
+## Set 0 to only generate gunplot script file, but do not plot it
+CALL_GNUPLOT=1
+
+## File settings 
+########
+## define file suffixes for data file, gnuplot script file and plot file
+## to be handled automatically
+## files in working directory:
+SUFFIX_DATA_FILE=".dat"
+SUFFIX_GNUPLOT_FILE=".gpi"
+SUFFIX_PLOT_FILE=".pdf"
+SUFFIX_LOCAL_SUPPLEMENT=".local.gpi" 
+## files in directory of this script
+SUFFIX_GLOBAL_SUPPLEMENT=".global.gpi"
+
+## set 1 to force overwriting existing files
+FORCE_OVERWRITE=1
+
+
+###############
+## Functions ##
+###############
+
+## Used for errors and display_help
+SCRIPTNAME=$(basename $0)
+
+display_help(){
+## Display this help if no argument, -h or --help
+echo "\
+---- Displaying help for $SCRIPTNAME ----
+	Plots convolutions of impuls spectra with Gnuplot  
+	Takes datafiles with whitespace-separated columns as input, column headers used as key
+	Two levels of defining gnuplot commands available (global and local)
+
+	Per default (change in the $SCRIPTNAME file): 
+		*) Cauchy distribution with a FWHM of 0.2
+		*) plots first column against second, third against fourth etc. 
+		   thus, only even number of columns supported
+		*) plots only the convolution, not the impulses
+		*) based on the datafile name for gnuplot script file (.gpi)
+		   and the plot file (.pdf)
+	The data format of the input file:
+		*) columns (also headers) are separated by whitespaces
+		*) if processing varying number of rows in arbitrary order use several input files
+		*) column headers are used as key
+		*) lines starting with # are ignored
+	Supplementary gnuplot commands:
+		*) defin gnuplot commands for all plots in
+		   ${0}${SUFFIX_GLOBAL_SUPPLEMENT}
+		   e.g. \"set xzeroaxis\" or \"set samples 1000\"
+		*) define gnuplot commands for individual plots in
+		   [datafile(without suffix ${SUFFIX_DATA_FILE})]${SUFFIX_LOCAL_SUPPLEMENT} 
+		   e.g. \"set title example\" or \"set xrange [0:1]\"
+
+	Usage: $SCRIPTNAME [list-of-datafiles] 
+		-p | --column-pair  INT1 INT2       Defines numbers of columns to be convoluted
+		                                    Needs to be placed directly behind each datafile
+		                                    If not present, plots 1st against 2nd, 3rd against 4th etc.
+		-c | --plot-cauchy FLOAT            Set FWHM for Cauchy (Lorentz) convolution
+		                                    Positive float, set 0 for no convolution
+		-g | --plot-gaussian FLOAT          Set FWHM for Gaussian convolution
+		-v | --plot-voigt FLOAT1 FLOAT2 R   Set FWHM for Cauchy convolution with FLOAT1
+		                                    and FWHM for Gaussian convolution with FLOAT2
+											and amount of Cauchy with R (between 0 and 1)
+		                                    Amount of Gauss is 1 - R
+		-i | --plot-impulses                Plot impulses along with convolution
+		-n | --plot-nothing                 Only create, but do not plot the script file
+		-o | --output-name [filename]       Declare basename for gnuplot script file
+		                                    and for plot file
+		                                    If several datafiles, but no --output-name, 
+		                                    use first datafile as basename
+		-f | --force-overwrite              Force to overwrite existing files
+" 
+}
+
+check_dependencies(){
+	## check if the necessary programmes are installed
+	PROGRAMS=( awk )
+	## gnuplot is only necessary if script file is to be plotted
+	if [ "$CALL_GNUPLOT" != 0 ]; then
+		PROGRAMS=( ${PROGRAMS[@]} gnuplot )
+	fi
+	for name in ${PROGRAMS[@]}; do
+		if ! which $name > /dev/null; then
+			echo "ERROR in $0: $name not installed" >&2
+			exit 1
+		fi
+	done
+}
+
+check_if_positive_float(){
+	## if argument is a positive floating point number, returns 0
+	## else, returns 1
+	if [[ $1 =~ ^[0-9]*\.?[0-9]*$ ]] ; then
+		return 0
+	else
+		return 1
+	fi
+}
+
+check_if_file_exists(){
+	## check if file exists and prompt the user if should be overwritten
+	## also considers $FORCE
+	if [ -f "$1" ] && [ "$FORCE_OVERWRITE" != 1 ]; then 
+		echo -n "$1 already exists. Overwrite? [y/n]:"
+		read OVERWRITE
+		if [ "$OVERWRITE" != y ]; then
+			echo "ERROR: Interrupt by user" >&2
+			exit 1
+		else 
+			echo "INFO: $1 overwritten" >&2
+		fi
+	fi	
+}
+
+cauchy_distribution(){
+	## Defines the functional form of the Cauchy distribution
+	## Use only an envirnoment, in which $INDEX is defined
+	echo "C${INDEX}(x,h$INDEX,p$INDEX,fwhm) = h$INDEX / pi * fwhm/2 / ( (x - p$INDEX)**2 + (fwhm/2)**2 )"
+}
+
+gaussian_distribution(){
+	## Defines the functional form of the Gaussian distribution
+	## Use only an envirnoment, in which h$INDEX and p$INDEX are defined
+	echo "G${INDEX}(x,h$INDEX,p$INDEX,fwhm) = h$INDEX / fwhm * 2 * sqrt( log(2) / pi ) * exp( -4 * log(2) * ( x - p$INDEX )**2 / fwhm**2)"
+}
+
+voigt_distribution(){
+ 	## Defines the functional form of the Voigt distribution
+	## Use only an envirnoment, in which h$INDEX and p$INDEX are defined
+	echo "V${INDEX}(x,h$INDEX,p$INDEX,fwhm1,fwhm2) = \\"
+	echo "  voigt_ratio *  h$INDEX / pi * fwhm1/2 / ( (x - p$INDEX)**2 + (fwhm1/2)**2 ) \\"
+	echo "    + (1 - voigt_ratio ) * h$INDEX / fwhm2 * 2 * sqrt( log(2) / pi ) * exp( -4 * log(2) * ( x - p$INDEX )**2 / fwhm2**2)"
+}
+
+define_convolution_and_plot_section(){
+	## takes 5 or 7 arguments
+	## 1) data file 2) position column 3) height column 4) distribution 5) FWHM ( 6) FWHM2 7) voigt_ratio)
+	## writes the parameters, the functional form and the sum of each column
+	## for a convolution
+	## also appends to the $PLOT_SECTION 
+	echo
+	echo "######"
+	echo "## $4 No $CONVOLUTIONINDEX"
+	if [ "$6" ] && [ "$7" ]; then
+		echo "fwhm1 = $5"
+		echo "fwhm2 = $6"
+		echo "voigt_ratio = $7"
+	else 
+		echo "fwhm = $5"
+	fi
+	ROWINDEX=1
+	unset FUNCTION_SUM
+	FUNCTION_SUM="0"
+	for data in $(
+		awk -v pos="$2" -v hei="$3" '
+			/^[[:space:]]*[-+]?[0-9]+\.?[0-9]*[[:space:]]/ { if (NR > 1) print $pos":"$hei } 
+		' "$1"
+	); do
+		POSITION=$(echo "$data" | awk 'BEGIN { FS=":" }; { print $1}')
+		HEIGHT=$(echo "$data" | awk 'BEGIN { FS=":" }; { print $2 }')
+		INDEX=${ROWINDEX}_${CONVOLUTIONINDEX}
+		if [[ $POSITION =~ [-+]?[0-9]+\.?[0-9] ]] && [[ $HEIGHT =~ [-+]?[0-9]+\.?[0-9] ]]; then
+			echo -n "p$INDEX = $POSITION ; h$INDEX = $HEIGHT; "
+			$4
+			FUNCTION=$($4)
+			FUNCTION_NAME=${FUNCTION%%=*}
+			FUNCTION_SUM=( ${FUNCTION_SUM[@]} + $FUNCTION_NAME )
+		fi
+		(( ++ROWINDEX ))
+	done
+	echo "CONVOLUTION_${CONVOLUTIONINDEX}(x) = ${FUNCTION_SUM[@]}"
+	## Append to the $PLOT_SECTION variable, which is later used to write the plot section
+	COLUMNHEAD=$(awk -v col="$2" 'NR==1 {print $col}' $1)
+#	if [ "$PLOT_IMPUL" = "1" ]; then
+#		PLOT_SECTION=("${PLOT_SECTION[@]}
+#			'$1' using $2:$3 with impulses ls $CONVOLUTIONINDEX title \"$COLUMNHEAD\",\\
+#	 		CONVOLUTION_${CONVOLUTIONINDEX}(x) with lines ls $CONVOLUTIONINDEX notitle,\\"
+#		)
+#	else
+#		PLOT_SECTION=("${PLOT_SECTION[@]}
+#	 		CONVOLUTION_${CONVOLUTIONINDEX}(x) with lines ls $CONVOLUTIONINDEX title \"$COLUMNHEAD\",\\"
+#		)
+#	fi
+	PLOT_SECTION_CONVOLUTIONS=("${PLOT_SECTION_CONVOLUTIONS[@]}
+	 	CONVOLUTION_${CONVOLUTIONINDEX}(x) with lines ls $CONVOLUTIONINDEX title \"$COLUMNHEAD\",\\" 
+	)
+	PLOT_SECTION_IMPULSES=("${PLOT_SECTION_IMPULSES[@]}
+		'$1' using $2:$3 with impulses ls $CONVOLUTIONINDEX title \"$COLUMNHEAD\",\\"
+	)
+	echo "INFO: $4 No $CONVOLUTIONINDEX written using columns $2 and $3 of file $1" >&2
+	(( ++CONVOLUTIONINDEX ))	
+}
+
+write_plot_section(){
+	## writes the plot section of the gnuplot script
+	if [ -z "$PLOT_SECTION_CONVOLUTIONS" ]; then
+		echo "ERROR in $0: No convolutions were defined" >&2
+		exit 1
+	fi
+	if [ "$PLOT_IMPUL" = 1 ]; then
+		PLOT_SECTION=( "${PLOT_SECTION[@]}$PLOT_SECTION_IMPULSES" )
+	fi
+	PLOT_SECTION=( "${PLOT_SECTION[@]}${PLOT_SECTION_CONVOLUTIONS[@]}
+		0/0 t '' ## Empty function to surpress trailing comma warning")
+	echo 
+	echo "##################"
+	echo "## Plot section ##"
+	echo "##################"
+	echo "${PLOT_SECTION[@]}"
+	echo
+	echo "INFO: Plot section written" >&2
+}
+
+initialise_variables(){
+	## Sets variables, that are altered/appended during the script
+	COLUMN_INDICATOR_COUNTER=0
+	CONVOLUTIONINDEX=1
+	PLOT_SECTION='plot\'
+}
+
+#######################
+## Parsing Arguments ##
+#######################
+
+if [ $# -eq 0 ]; then
+	echo "ERROR in $SCRIPTNAME: Please supply argument" >&2
+	display_help
+	exit 1
+fi
+
+while [ "$1" ]; do 
+	case "$1" in
+		-h|--help) 
+			display_help
+			exit 0
+			;;
+		-l|--plot-labels)
+			PLOT_LABEL=1
+			;;
+		-o|--output-name) shift
+			OUTPUT_BASE="$1"
+			echo "INFO: base name for output files set to $1" >&2
+			;;
+		-c|--plot-cauchy) shift
+			if check_if_positive_float $1; then
+				PLOT_CAUCH_FWHM="$1"
+				echo "INFO: FWHM for Cauchy distribution set to $1"
+			else
+				echo "ERROR in $SCRIPTNAME: $1 is not a positive float" >&2
+				exit 1
+			fi
+			;;
+		-g|--plot-gaussian) shift
+			if check_if_positive_float $1; then
+				PLOT_GAUSS_FWHM="$1"
+				echo "INFO: FWHM for Gaussian distribution set to $1" >&2
+			else
+				echo "ERROR in $SCRIPTNAME: $1 is not a positive float" >&2
+				exit 1
+			fi
+			;;
+		-v|--plot-voigt) shift
+			if check_if_positive_float $1; then
+				PLOT_VOIGT_FWHM1="$1"
+			else
+				echo "ERROR in $SCRIPTNAME: $1 is not a positive float" >&2
+				exit 1
+			fi
+			shift
+			if check_if_positive_float $1; then
+				PLOT_VOIGT_FWHM2="$1"
+			else
+				echo "ERROR in $SCRIPTNAME: $1 is not a positive float" >&2
+				exit 1
+			fi
+			shift 
+			if check_if_positive_float $1 && [ "$(echo "$1 <= 1" | bc -l)" = 1 ] ; then
+				PLOT_VOIGT_RATIO=$1
+			else 
+				echo "ERROR in $SCRIPTNAME: $1 is not a float between 0 and 1" >&2
+				exit 1
+			fi
+			echo "INFO: FWHMs for Voigt distribution set to $PLOT_VOIGT_FWHM1 and $PLOT_VOIGT_FWHM2 with a ratio of $PLOT_VOIGT_RATIO" >&2
+			;;
+		-i|--plot-impulses)
+			PLOT_IMPUL=1
+			echo "INFO: Impuls spectrum is plotted" >&2
+			;;
+		-n|--plot-nothing)
+			CALL_GNUPLOT=0
+			echo "INFO: Gnuplot is not excecuted" >&2
+			;;
+		-f|--force-overwrite)
+			FORCE_OVERWRITE=1
+			echo "INFO: Existing files are overwritten" >&2
+			;;
+		-*)
+			echo "ERROR in $SCRIPTNAME: Invalid argument detected: $1" >&2
+			exit 1
+			;;
+		*) 
+            ## Assign valid files to $DATA_FILE array
+            if [ -f "$1" ]; then 
+				DATA_FILE=(${DATA_FILE[@]} "$1")
+				echo -n "INFO: Using $1 with " >&2
+				## Check if -p is following and append to the $COLUMN_INDICATOR
+				## accordingly with either column1:column2 or AUTO
+				if [ "$2" = '-p' ] || [ "$2" = '--column-pair' ]; then
+					shift
+					shift
+					if [ "$1" -eq "$1" ] && [ "$2" -eq "$2" ]; then
+						COLUMN_INDICATOR=(${COLUMN_INDICATOR[@]} "$1:$2")
+						echo "column pair $1 and $2" >&2
+					else 
+						echo "ERROR in $SCRIPTNAME: $1 or $2 are not valid integers" >&2
+						exit 1
+					fi
+					shift
+				else
+					COLUMN_INDICATOR=(${COLUMN_INDICATOR[@]} "AUTO")
+					echo "all column pairs" >&2
+				fi
+            else
+                echo "ERROR in $SCRIPTNAME: Input is not a valid file: $1" >&2
+                exit 1
+            fi
+			## If filename 
+	esac
+	shift
+done 
+
+## Test installed programmes
+check_dependencies
+
+## Test for input file
+if [ ! "$DATA_FILE" ]; then
+	echo "ERROR in $SCRIPTNAME: No input file to be processed" >&2
+	exit 1
+fi
+
+## declare name of gnuplot script file and plot file
+## the variables store the relatives paths to the file
+if [ "$OUTPUT_BASE" ]; then
+	## based on the --output-name
+	DATA_FILE_BASE="$(dirname $DATA_FILE)"/"$OUTPUT_BASE"
+	GNUPLOT_FILE="$DATA_FILE_BASE""$SUFFIX_GNUPLOT_FILE"
+	PLOT_FILE="$DATA_FILE_BASE""$SUFFIX_PLOT_FILE"
+else
+	## or the default $SUFFIX_DATA_FILE
+	DATA_FILE_BASE=${DATA_FILE%$SUFFIX_DATA_FILE}
+	GNUPLOT_FILE="$DATA_FILE_BASE""$SUFFIX_GNUPLOT_FILE"
+	PLOT_FILE="$DATA_FILE_BASE""$SUFFIX_PLOT_FILE"
+fi
+
+
+## Write to the gnuplot script file 
+check_if_file_exists $GNUPLOT_FILE
+
+## Set convolution counter and plot section variables
+initialise_variables
+
+
+## Write gnuplot script file
+{
+## Check for files with additional gnuplot commands and paste them
+## global
+if [ -f "${0}${SUFFIX_GLOBAL_SUPPLEMENT}" ]; then
+	cat "${0}${SUFFIX_GLOBAL_SUPPLEMENT}"
+	echo "INFO: ${0}${SUFFIX_GLOBAL_SUPPLEMENT} inserted" >&2
+fi
+## local
+if [ -f "${DATA_FILE_BASE}${SUFFIX_LOCAL_SUPPLEMENT}" ]; then
+	echo "#####################################"
+	echo "## ${DATA_FILE_BASE}${SUFFIX_LOCAL_SUPPLEMENT} " 
+	echo "#####################################"
+	cat "${DATA_FILE_BASE}${SUFFIX_LOCAL_SUPPLEMENT}"
+	echo 
+	echo "INFO: ${DATA_FILE_BASE}${SUFFIX_LOCAL_SUPPLEMENT} inserted" >&2
+fi
+
+## Run routine to define the convolutions and the plot section
+echo "##################################"
+echo "## Definition of Convolution(s) ##"
+echo "##################################"
+for file in ${DATA_FILE[@]}; do
+	unset PLOT_COLUMNS
+	if [ "${COLUMN_INDICATOR[$COLUMN_INDICATOR_COUNTER]}" = "AUTO" ]; then
+		## Determine the number of columns and check if even number
+		N_COLUMNS=$(head -n1 $file | wc -w)
+		if (( $N_COLUMNS%2 != 0 )); then
+			echo "ERROR in $SCRIPTNAME: Unable to deal with uneven number of columns (\$N_COLUMNS = $N_COLUMNS)" >&2
+			exit 1
+		fi
+		PLOT_COLUMNS=( $(
+			for N in $(seq 1 2 $N_COLUMNS); do  
+				echo $N:$(( N + 1))
+			done
+		) )
+	else
+		PLOT_COLUMNS=${COLUMN_INDICATOR[$COLUMN_INDICATOR_COUNTER]}
+	fi
+	for columns in ${PLOT_COLUMNS[@]}; do
+		column1=$(echo $columns | awk 'BEGIN {FS=":"}; {print $1}') 
+		column2=$(echo $columns | awk 'BEGIN {FS=":"}; {print $2}') 
+		if [ "$PLOT_CAUCH_FWHM" ] && [ "$PLOT_CAUCH_FWHM" != "0" ]; then
+			define_convolution_and_plot_section "$file" $column1 $column2 cauchy_distribution $PLOT_CAUCH_FWHM
+		fi
+		if [ "$PLOT_GAUSS_FWHM" ] && [ "$PLOT_GAUSS_FWHM" != "0" ]; then
+			define_convolution_and_plot_section "$file" $column1 $column2 gaussian_distribution $PLOT_GAUSS_FWHM
+		fi
+		if [ "$PLOT_VOIGT_FWHM1" ] && [ "$PLOT_VOIGT_FWHM2" ] && [ "$PLOT_VOIGT_FWHM1" != "0" ] && [ "$PLOT_VOIGT_FWHM2" != "0" ]; then
+			define_convolution_and_plot_section "$file" $column1 $column2 voigt_distribution $PLOT_VOIGT_FWHM1 $PLOT_VOIGT_FWHM2 $PLOT_VOIGT_RATIO
+		fi
+	done
+	(( ++COLUMN_INDICATOR_COUNTER ))
+done
+
+write_plot_section
+
+
+echo "replot"
+} > "$GNUPLOT_FILE"
+
+## Call gnuplot 
+if [ "$CALL_GNUPLOT" = 1 ]; then
+	{
+	echo "set term pdf"
+	echo "set output '$PLOT_FILE'"
+    echo "replot" 
+	} >> "$GNUPLOT_FILE"
+	echo "INFO: Excecuting gnuplot" >&2
+	gnuplot "$GNUPLOT_FILE"
+fi
+
+exit 0
+
+
+

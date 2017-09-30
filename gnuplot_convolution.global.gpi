@@ -1,0 +1,32 @@
+#####################################
+## gnuplot_convolution.global.gpi: ##
+## Global settings for gnuplot     ##
+## using gnuplot_convolution       ##
+#####################################
+
+########
+## axis
+set xzeroaxis
+set mxtics 2
+set mytics 2
+set xtics nomirror
+set ytics nomirror
+
+##########
+## labels
+set xlabel offset 0,0
+set ylabel offset 0,0
+
+#######
+## key
+set key top left Left reverse
+set key autotitle columnhead
+set key spacing 0.6 
+
+#######
+## misc
+set samples 1000
+#set term pdf font "Helvetica,15"
+#set termoption enhanced
+
+
