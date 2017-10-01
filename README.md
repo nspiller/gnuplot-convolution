@@ -1,8 +1,15 @@
 # gnuplot-convolution
 
-This programme creates convolutions (e.g. Gaussian or Cauchy) of impulse spectra
+This `bash` script creates convolutions (e.g. Gaussian or Cauchy) of impulse spectra
 with `gunplot`.
 
+## Setup
+Download repository as a Zip-archive or use:
+```
+git clone https://github.com/nspiller/gnuplot-convolution
+```
+Add the folder to your path variable and make [gnuplot_convolution](gnuplot_convolution) 
+executable with `chmod u+x gnuplot_convolution`.
 
 ## Minimum working example
 The input file and the desired distribution
