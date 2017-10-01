@@ -1,6 +1,7 @@
 # gnuplot-convolution
 
-This programme creates convolutions (e.g. Gaussian or Cauchy) of impulse spectra.
+This programme creates convolutions (e.g. Gaussian or Cauchy) of impulse spectra
+with `gunplot`.
 
 
 ## Minimum working example
