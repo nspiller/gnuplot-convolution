@@ -40,7 +40,7 @@ The basename can be changed with `--output-base`.
 Some default values can be set directly in [gnuplot_convolution](gnuplot_convolution)  
 in the "Default variable declaration" section.
 
-## global and local gnuplot settings
+## Global and local `gnuplot` commands
 To assure a uniform layout of the plots, gnuplot settings can be 
 specified on two levels of hierarchy. General settings (e.g. appearance) can be 
 stored in [gnuplot_convolution.global.gpi](gnuplot_convolution.global.gpi). 
