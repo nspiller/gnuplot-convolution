@@ -30,7 +30,7 @@ after** the input file, e.g:
 gnuplot_convolution inputfile.dat -p 3 1 inputfile.dat -p 2 7 
 ```
 
-Only the convolutions are plotted. The impulss spectrum can be plotted
+Only the convolutions are plotted. The impuls spectrum can be plotted
 with `--plot-impulses`
 
 The suffix `.dat` is automatically stripped from the input file
@@ -42,7 +42,7 @@ in the "Default variable declaration" section.
 
 ## global and local gnuplot settings
 To assure a uniform layout of the plots, gnuplot settings can be 
-specified on two levels of hierarchy. General settings (e.g. appearence) can be 
+specified on two levels of hierarchy. General settings (e.g. appearance) can be 
 stored in [gnuplot_convolution.global.gpi](gnuplot_convolution.global.gpi). 
 Settings specific to each plot (e.g. minimum and maximum of the axis) 
 can be stored for each `inputfile.dat` in that folder
@@ -57,7 +57,7 @@ gnuplot_convolution inputfile_1.dat -p 1 2 inputfile_2.dat -p 4 7 inputfile_3.da
 ```
 
 ### Reusing the `gnuplot` code 
-The excecution of `gnuplot` can be surpressed with `--plot-nothing`. This can be 
+The execution of `gnuplot` can be suppressed with `--plot-nothing`. This can be 
 useful if the code block is to be used in another programme.
 
 ## Examples
